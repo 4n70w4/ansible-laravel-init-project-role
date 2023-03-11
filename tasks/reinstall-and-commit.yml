@@ -1,0 +1,38 @@
+---
+
+- name: remove old {{item.name}}
+  composer:
+    command: remove
+    arguments: "{{item.package}}"
+    working_dir: "{{ working_dir }}"
+  when: item.dev == false
+
+- name: remove old dev {{item.name}}
+  composer:
+    command: remove
+    arguments: --dev "{{item.package}}"
+    working_dir: "{{ working_dir }}"
+  when: item.dev == true
+
+- name: Require {{item.name}}
+  composer:
+    command: require
+    arguments: "{{item.package}}"
+    working_dir: "{{ working_dir }}"
+  when: item.dev == false
+  
+- name: Require dev {{item.name}}
+  composer:
+    command: require
+    arguments: --dev "{{item.package}}"
+    working_dir: "{{ working_dir }}"
+  when: item.dev == true
+
+- name: Commit changes to git
+  shell: |
+    git add .
+    {{ committer}} git commit --author="{{ git_author }}" -m "Re-install {{item.name}}"
+    # Needed as git commit will fail if there are no changed files
+    exit 0
+  args:
+    chdir: "{{ working_dir }}"

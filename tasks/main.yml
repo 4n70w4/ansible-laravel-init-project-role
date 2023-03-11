@@ -1,0 +1,101 @@
+---
+
+- name: Create directories
+  file:
+    path: "{{ item.path }}"
+    state: directory
+  with_items:
+    - {path: "{{ base_dir }}"}
+
+- name: Install composer
+  apt:
+    name: composer
+    state: present
+
+# for 
+- name: Install php-dom
+  apt:
+    name: php-dom
+    state: present
+
+# for hirak/prestissimo
+#- name: Install php-curl
+#  apt:
+#    name: php-curl
+#    state: present
+
+# for hirak/prestissimo
+#- name: Install which
+#  apt:
+#    name: which
+#    state: present
+
+# for hirak/prestissimo
+- name: Install patch
+  apt:
+    name: patch
+    state: present
+
+- name: check directory exists
+  stat:
+    path: "{{ working_dir }}"
+  register: already_exists
+
+- name: Clone project and install with all dependencies
+  composer:
+    command: create-project
+    arguments: "laravel/laravel {{ project_name }}"
+    working_dir: "{{ base_dir }}"
+    prefer_dist: yes
+  when: not already_exists.stat.exists
+
+- name: Git init
+  command: git init {{ working_dir }}
+
+- name: commit changes to git
+  shell: |
+    git add .
+    {{ committer}} git commit --author="{{ git_author }}" -m "Init laravel"
+    # Needed as git commit will fail if there are no changed files
+    exit 0
+  args:
+    chdir: "{{ working_dir }}"
+
+
+- name: Composer require
+  include: install-and-commit.yml
+  with_items:
+#    - {name: 'prestissimo', package: 'hirak/prestissimo', dev: false}
+    - {name: 'composer-patches', package: 'vaimo/composer-patches', dev: false}
+    - {name: 'laravel-modules', package: 'nwidart/laravel-modules', dev: false}
+
+    - {name: 'laravel-debugbar', package: 'barryvdh/laravel-debugbar', dev: true, provider: 'Barryvdh\Debugbar\ServiceProvider'}
+    - {name: 'security-advisories', package: 'roave/security-advisories', dev: true}
+#    - {name: 'infection', package: 'infection/infection', dev: true, downgrade: ['nikic/php-parser:4.9'] }
+    - {name: 'infection', package: 'infection/infection', dev: true }
+
+    - {name: 'laravel-ide-helper', package: 'barryvdh/laravel-ide-helper', dev: true, provider: 'Barryvdh\LaravelIdeHelper\IdeHelperServiceProvider', tag: 'config'}
+
+    - {name: 'codeception', package: 'codeception/codeception', dev: true}
+
+    - {name: 'phpmd', package: 'phpmd/phpmd', dev: true}
+    - {name: 'phpmetrics', package: 'phpmetrics/phpmetrics', dev: true}
+    - {name: 'phpstan', package: 'phpstan/phpstan', dev: true}
+
+
+- name: Composer reinstall
+  include: reinstall-and-commit.yml
+  with_items:
+    - {name: 'phpunit', package: 'phpunit/phpunit', dev: true}
+
+
+- name: Azaza
+  include: install-and-commit.yml
+  with_items:
+    - {name: 'phpunit-coverage-check', package: 'rregeer/phpunit-coverage-check', dev: true}
+    - {name: 'paratest', package: 'brianium/paratest', dev: true}
+    - {name: 'phpcpd', package: 'sebastian/phpcpd', dev: true}
+
+
+- name: Ide helper
+  include: ide-helper.yml

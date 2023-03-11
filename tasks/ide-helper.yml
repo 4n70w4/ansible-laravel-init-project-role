@@ -1,0 +1,36 @@
+---
+
+#  - name: include_fluent is true
+#    shell: |
+#      sed -i "s/'include_fluent' => false,/'include_fluent' => true,/g" config/ide-helper.php
+#    args:
+#      chdir: "{{ working_dir }}"
+
+
+- name: include_fluent is true
+  lineinfile:
+    path: "{{ working_dir }}/config/ide-helper.php"
+    regexp: 'include_fluent'
+    line: "     'include_fluent' => true,"
+
+
+- name: ide-helper:generate
+  shell: |
+    php artisan ide-helper:generate
+  args:
+    chdir: "{{ working_dir }}"
+
+- name: ide-helper:meta
+  shell: |
+    php artisan ide-helper:meta
+  args:
+    chdir: "{{ working_dir }}"
+
+- name: commit changes to git
+  shell: |
+    git add .
+    {{ committer}} git commit --author="{{ git_author }}" -m "Generate helpers"
+    # Needed as git commit will fail if there are no changed files
+    exit 0
+  args:
+    chdir: "{{ working_dir }}"

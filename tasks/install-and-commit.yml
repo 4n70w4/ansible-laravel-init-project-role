@@ -1,0 +1,88 @@
+---
+
+- name: Check if {{item.name}} is installed
+  command: composer show {{item.package}}
+  args:
+    chdir: "{{ working_dir }}"
+  register: composer_check
+  changed_when: false
+  failed_when: false
+
+- debug:
+    var: item
+
+- debug:
+    msg: 'provider {{item.provider}}'
+  when: item.provider is defined
+
+- debug:
+    msg: 'tag {{item.tag}}'
+  when: item.tag is defined
+
+- debug:
+    msg: 'executed code {{composer_check.rc}}'
+
+- debug:
+    msg: 'executed code {{downgrade}}'
+  when: item.downgrade is defined
+  loop: '{{item.downgrade}}'
+  loop_control:
+    loop_var: downgrade
+
+- name: Downgrade {{item.downgrade}}
+  composer:
+    command: require
+    arguments: "{{downgrade}}"
+    working_dir: "{{ working_dir }}"
+  when: item.downgrade is defined
+  loop: '{{item.downgrade}}'
+  loop_control:
+    loop_var: downgrade
+
+- name: Commit downgrades for {{item.name}} to git
+  shell: |
+    git add .
+    {{ committer}} git commit --author="{{ git_author }}" -m "Downgrades for {{item.name}}"
+    # Needed as git commit will fail if there are no changed files
+    exit 0
+  args:
+    chdir: "{{ working_dir }}"
+  when: item.downgrade is defined
+
+- name: Require {{item.name}}
+  composer:
+    command: require
+    arguments: "{{item.package}}"
+    working_dir: "{{ working_dir }}"
+  when: composer_check.rc != 0 and item.dev == false
+
+- name: Require dev {{item.name}}
+  composer:
+    command: require
+    arguments: --dev "{{item.package}}"
+    working_dir: "{{ working_dir }}"
+  when: composer_check.rc != 0 and item.dev == true
+
+- name: Publish {{item.name}} config
+  shell: |
+    php artisan vendor:publish --provider="{{item.provider}}"
+  args:
+    chdir: "{{ working_dir }}"
+  when: composer_check.rc != 0 and item.dev == true and item.provider is defined and item.tag is undefined
+
+- name: Publish {{item.name}} config
+  shell: |
+    php artisan vendor:publish --provider="{{item.provider}}" --tag={{item.tag}}
+  args:
+    chdir: "{{ working_dir }}"
+  when: composer_check.rc != 0 and item.dev == true and item.provider is defined and item.tag is defined
+
+- name: Commit require {{item.name}} to git
+  shell: |
+    git add .
+    {{ committer}} git commit --author="{{ git_author }}" -m "Require {{item.name}}"
+    # Needed as git commit will fail if there are no changed files
+    exit 0
+  args:
+    chdir: "{{ working_dir }}"
+  when: composer_check.rc != 0

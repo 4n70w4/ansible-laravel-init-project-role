@@ -1,0 +1,14 @@
+---
+
+base_dir:
+project_name:
+
+git_committer_name:
+git_committer_email:
+
+
+working_dir: "{{ base_dir }}/{{ project_name }}"
+
+git_author: "{{ git_committer_name }} <{{ git_committer_email }}>"
+
+committer: GIT_COMMITTER_NAME="{{ git_committer_name }}" GIT_COMMITTER_EMAIL="{{ git_committer_email }}"
